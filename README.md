@@ -1,4 +1,4 @@
-[toc]
+__TOC__
 
 # Senior Design Chronograph - The Passing of the Torch
 This is the documentation for the software for senior design project for the
