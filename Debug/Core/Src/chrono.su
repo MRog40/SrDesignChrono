@@ -1,0 +1,10 @@
+chrono.c:7:6:init_chrono	24	static
+chrono.c:19:6:add_history	16	static
+chrono.c:34:6:process_reading	24	static
+chrono.c:52:6:new_reading	80	static
+chrono.c:70:6:display_update	40	static
+chrono.c:88:5:ind	24	static
+chrono.c:98:6:error	8	static
+chrono.c:104:10:time_meas	24	static
+chrono.c:129:7:d_to_str	40	static
+chrono.c:149:7:u_to_str	16	static
