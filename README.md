@@ -1,12 +1,31 @@
 [toc]
 
 # Senior Design Chronograph
-This is the documentation for the software for senior design project dedicated to the measurement of the speed of small caliber projectiles using a laser chronograph.
+This is the documentation for the software for senior design project dedicated
+to the measurement of the speed of small caliber projectiles. This software is
+written for an STM32F4 microcontroller that is the at the core of our system --
+a three gate laser plane chronograph.
 
+**Note:** Think of all the links provided in this documentation as part of the
+documentation. They are not just relevant tangential links, but meant to be
+consumed inline or at the minimum referenced later.
 
 # Hardware
 
+The 32-bit MCU being used for this project is the [STM32F405RGT][STM32F405RGT].
+That link has good information about the device, but the primary reason it was
+selected was due to its speed. The [datasheet][MCU Datasheet] has better
+information than ST's marketing material. This processor has way more
+peripherals and processing power than we need, but it was an incredibly cheap
+option to get very fast timing capabilities into our project.
+
 # Development Tools
+
+ST's [development ecosystem][ST Tools] has become impressive throughout the
+years, going from eclipse addons to fully fledged IDE's with automatic code
+generation capabilities from GUI peripheral setup and impressive graphical
+clock management systems. This available tooling also contributed to it being
+selected over alternative MCUs.
 
 ## IDE
 
@@ -125,6 +144,22 @@ void lcd_init (void)
 }
 ```
 
+### LCD Usage Example
+
+```c
+lcd_put_cur(0,0);
+lcd_send_string("3:             Ready");
+
+lcd_put_cur(1,0);
+lcd_send_string("2:");
+
+lcd_put_cur(2,0);
+lcd_send_string("1:");
+
+lcd_put_cur(3,0);
+lcd_send_string("0: 1317.9 fps");
+```
+
 ### Display Update
 
 ## Chronograph Struct
@@ -136,7 +171,12 @@ void lcd_init (void)
 
 ## Hardware Info
 
+[STM32F405RGT]: https://www.st.com/en/microcontrollers-microprocessors/stm32f405rg.html
+[MCU Datasheet]: https://www.st.com/resource/en/datasheet/dm00037051.pdf
+
 ## Dev Tools
+
+[ST Tools]: https://www.st.com/en/development-tools/stm32-software-development-tools.html
 
 [STM32CubeIDE]: https://www.st.com/en/development-tools/stm32cubeide.html
 [CubeIDE Quick Start]: https://www.st.com/resource/en/user_manual/dm00598966-stm32cubeide-quick-start-guide-stmicroelectronics.pdf
@@ -144,6 +184,8 @@ void lcd_init (void)
 [ARM GCC]: https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm
 
 [STM32CubeMX]: https://www.st.com/en/development-tools/stm32cubemx.html
-[CubeMX]: https://www.st.com/resource/en/user_manual/dm00104712-stm32cubemx-for-stm32-configuration-and-initialization-c-code-generation-stmicroelectronics.pdf
+[CubeMX Manual]: https://www.st.com/resource/en/user_manual/dm00104712-stm32cubemx-for-stm32-configuration-and-initialization-c-code-generation-stmicroelectronics.pdf
 
 ## Programming Manuals
+
+[STM32 HAL Manual]: https://www.st.com/resource/en/user_manual/dm00105879-description-of-stm32f4-hal-and-ll-drivers-stmicroelectronics.pdf 
