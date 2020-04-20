@@ -4,6 +4,8 @@
 #include "stdint.h"
 #include <string.h>
 
+// Sets up the chronograph struct with all of the desired initial states, and
+// creates the history buffer as a 2d array with the size specified in H_SIZE.
 void init_chrono(volatile chronograph *chrono)
 {
     chrono->h_index = 0;
@@ -16,6 +18,8 @@ void init_chrono(volatile chronograph *chrono)
     	strcpy((char *)chrono->history[i], "");
 }
 
+// Given a new reading and the current chronograph, it puts the new reading
+// into the new history position defined by the h_index. 
 void add_history(char *new, volatile chronograph *chrono)
 {
     // Move index, or reset it to overwrite once history size is full
@@ -27,10 +31,10 @@ void add_history(char *new, volatile chronograph *chrono)
     // Store value in history buffer
     strcpy((char *)chrono->history[chrono->h_index], new);
 
-    // Write to SD card here
+    // TODO: Write to SD card here
 }
 
-//
+// This value 
 void process_reading(volatile chronograph *chrono)
 {
     chrono->reading = 0;
@@ -76,15 +80,16 @@ void display_update(volatile chronograph *chrono)
     {
         lcd_put_cur(col,0);
         HAL_Delay(5);
-        // u_to_str is unsigned integer to string conversion
-        // This sends the index number for the reading, what historical value it is at
-        // u_to_str takes the last byte in the buffer and works from the end of the string back to the beginning
+
         lcd_send_string(u_to_str(3 - col - chrono->v_index, buff + 16));
         lcd_send_string(": ");
+
         lcd_send_string((char *)chrono->history[ind(col, chrono)]);
     }
 }
 
+// This function is used to find the current index of the buffer and controls
+// wrapping back to the beginning when the history buffer is full.
 int ind(int col, volatile chronograph *chrono)
 {
 	int ind = chrono->h_index + 3 - col - chrono->v_index;
@@ -95,11 +100,13 @@ int ind(int col, volatile chronograph *chrono)
 	return ind;
 }
 
+
 void error()
 {
     lcd_put_cur(3,0);
     lcd_send_string("ERROR");
 }
+
 
 uint32_t time_meas(const uint32_t tim1, const uint32_t tim2, const uint32_t tim3, uint8_t *gates)
 {
@@ -126,6 +133,7 @@ uint32_t time_meas(const uint32_t tim1, const uint32_t tim2, const uint32_t tim3
     return 1;
 }
 
+
 char *d_to_str(double d_x, char *s)
 {
     uint32_t x = d_x*100;
@@ -145,6 +153,7 @@ char *d_to_str(double d_x, char *s)
         *--s = '0' + x % 10;
     return s;
 }
+
 
 char *u_to_str(unsigned x, char *s)
 {
