@@ -6,9 +6,9 @@ measurement of the speed of small caliber projectiles. This software is written
 for an STM32F4 microcontroller that is the at the core of our system -- a three
 gate laser plane chronograph. 
 
-_**Note:** Most of the links provided in this documentation are crucial. They
-are not just relevant tangential links, but meant to be consumed inline or at
-minimum referenced later on._
+_**Note:** Most of the links provided in this documentation are not just
+relevant tangents, but meant to be consumed inline or at minimum referenced
+later on._
 
 # Hardware
 ## STM32F4
@@ -119,7 +119,14 @@ the **BOOT** button on our devices. There are multiple ways to enter DFU Mode:
 After much deliberation and time and effort poored into CMSIS drivers, I
 succumbed to using ST's HAL drivers for this project.
 
-## Theory of Operation
+## Core Functionality Explained
+The core functionality of this project is done. When setup, assuming the gates
+trigger the way they should, projectiles passing through those gates should
+prompt the display to show a new FPS reading of the velocity of that
+projectile.
+
+The software is entirely interrupt driven. Right now there are 3 interrupts
+setup, one for each gate. TODO
 
 ## Software Manuals
 The [STM32F405 Reference Manual][STM32F405 RM] is the most important document
@@ -273,6 +280,14 @@ lcd_send_string("0: 1317.9 fps");
 
 ## ISRs and Timers
 
+# Testing and Validation
+I have validated the software work thus far using three digital outputs of an
+Arduino to drive the gate inputs in succession as a simulation of a projectile
+passing through the chronograph. The timing resolution and digital output speed
+on the ATmega328p not fast enough to test precision. My goal was to eventually
+do the same testing with the actual digital board of the device, and replace
+the Arduino with the current STM32F4 prototype board for it's high speed GPIO
+output in place of the Arduino to test the precision and work on calibration.
 
 <!-- Reference Links -->
 [STM32F405RGT]: https://www.st.com/en/microcontrollers-microprocessors/stm32f405rg.html
