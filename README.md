@@ -1,4 +1,33 @@
-[toc]
+### Table of Contents
+<!-- vim-markdown-toc GFM -->
+
+* [Senior Design Chronograph - The Passing of the Torch](#senior-design-chronograph---the-passing-of-the-torch)
+* [Hardware](#hardware)
+    * [STM32F4](#stm32f4)
+    * [Prototype Board](#prototype-board)
+    * [Digital Board](#digital-board)
+* [Development Tools](#development-tools)
+    * [IDE](#ide)
+    * [DFU Mode](#dfu-mode)
+    * [Step-by-Step Guide to Programming With DFU](#step-by-step-guide-to-programming-with-dfu)
+        * [Step-by-Step 3-Step Summary](#step-by-step-3-step-summary)
+* [Software](#software)
+    * [Core Functionality Explained](#core-functionality-explained)
+    * [Software Manuals](#software-manuals)
+    * [LCD Display](#lcd-display)
+        * [LCD Drivers](#lcd-drivers)
+        * [LCD Setup](#lcd-setup)
+        * [LCD Usage Example](#lcd-usage-example)
+    * [Chronograph Struct](#chronograph-struct)
+        * [Struct Variable Definitions](#struct-variable-definitions)
+* [ISR and System Flow](#isr-and-system-flow)
+        * [time_meas function](#time_meas-function)
+        * [u_to_str function](#u_to_str-function)
+        * [d_to_str function](#d_to_str-function)
+        * [ind function](#ind-function)
+* [Testing and Validation](#testing-and-validation)
+
+<!-- vim-markdown-toc -->
 
 # Senior Design Chronograph - The Passing of the Torch
 This is the documentation for the software for senior design project for the
