@@ -126,7 +126,13 @@ prompt the display to show a new FPS reading of the velocity of that
 projectile.
 
 The software is entirely interrupt driven. Right now there are 3 interrupts
-setup, one for each gate. TODO
+setup, one for each gate. When a gate fires, it reads the timer and then waits
+for another another interrupt. If no interrupt comes within 100 milliseconds,
+the `process_reading` is called which calculates the velocity of the projectile
+based on the timer values read in from the interrupts, and the new reading is
+displayed to the user and stored in history. 
+
+I will go over this code in more detail below.
 
 ## Software Manuals
 The [STM32F405 Reference Manual][STM32F405 RM] is the most important document
@@ -154,8 +160,19 @@ manuals available. You realistically should not need any information outside of
 the links provided in this section.
 
 ## LCD Display
+The LCD is a 20 by 4 character display. Here is the
+[closest thing I could find to a datasheet][sunfound-i2c-wiki]. It isn't the
+most helpful page, but I was able to extract the information I needed the
+Liquid Crystal Arduino library they reference. Unfortunately, the library is
+written in object-oriented C++, so besides the bytes needed for setup commands
+I wasn't able to use much of it. 
 
 ### LCD Drivers
+These are the drivers I wrote, and they seem to be working fully in the testing
+I did. The functions directly used are `lcd_put_cur` to set the cursor position
+and `lcd_send_string` to write a string out to the display at the cursor
+position. **Note:** any writing to the display advances the
+cursor position.
 
 ```c
 // Each byte of data is actually sent in 4 bytes to instruct the display on how
@@ -229,6 +246,9 @@ void lcd_send_string (char *str)
 ```
 
 ### LCD Setup
+The LCD is setup to not display the cursor, and the rest is just necessary
+setup for the i2c contoller. `lcd_init` is called in main along side the other
+system init functions that run on startup.  
 
 ```c
 void lcd_init (void)
@@ -258,27 +278,359 @@ void lcd_init (void)
 }
 ```
 
+
 ### LCD Usage Example
+Here is an example of using the lcd display to fill the screen with relevant
+information:
 
 ```c
 lcd_put_cur(0,0);
-lcd_send_string("3:             Ready");
+lcd_send_string("3: 1314.3 fps");
 
 lcd_put_cur(1,0);
-lcd_send_string("2:");
+lcd_send_string("2: 1317.6 fps");
 
 lcd_put_cur(2,0);
-lcd_send_string("1:");
+lcd_send_string("1: 1316.2 fps");
 
 lcd_put_cur(3,0);
 lcd_send_string("0: 1317.9 fps");
 ```
 
-### Display Update
+![lcd_example](images/lcd_example.jpg)
+
 
 ## Chronograph Struct
 
-## ISRs and Timers
+This struct is used to store all of the information about the chronograph's
+current state. 
+
+```c
+typedef struct Chronograph {
+    uint8_t h_index; // History index (for storage index)
+    uint8_t v_index; // View index (for user scrolling)
+
+    char history[H_SIZE][10];
+
+    uint32_t gate_1_time;
+    uint32_t gate_2_time;
+    uint32_t gate_3_time;
+    uint8_t reading; // Reading flag set by gates
+} chronograph;
+```
+
+### Struct Variable Definitions
+
+<dl>
+  <dt>h_index</dt>
+  <dd>This is the index of the current value in history. At any time,
+  <code>history[Chronograph.h_index]</code> is the most recent measured
+  velocity data.</dd>
+  <br>
+  <dt>v_index</dt>
+  <dd>This is the index of the current value displayed on the screen. This is
+  used for user scrolling of historical data to see beyond the last 4
+  measurements, up to <code>H_SIZE</code> measurements.</dd>
+  <br>
+  <dt>history</dt>
+  <dd>This array stores the historical readings as formatted strings ready for
+  display.</dd>
+  <br>
+  <dt>gate_#_time</dt>
+  <dd>These 3 variables store the timer value at which the gate was triggered, used to calculate the velocity.</dd>
+  <br>
+  <dt>reading</dt>
+  <dd>This is a flag set by gate interrupts that signifies that there is a new
+  reading to be processed. It probably doesn't seem like this would be
+  necessary given it is an interrupt driven system, but is needed to ensure a
+  reading is taken even if the third gate doesn't fire.</dd>
+</dl>
+
+# ISR and System Flow
+
+The 3 gates are wired to the NVIC as `EXTI0_IRQHandler`, `EXTI1_IRQHandler`,
+and `EXTI2_IRQHandler` located in `stm32f4xx_it.c`. They are all essentially
+the same besides the gate number changing.
+
+1. The interrupt flag is cleared to prevent the ISR to be pushed onto the stack
+   again.
+2. The value in the 32-bit setup as continous upcount `TIM2` is stored into the
+   chronograph `gate_#_time`.
+3. The chronograph reading flag is set.
+4. A 100 ms delay is started, which has the M4 run `NOPS` while waiting for the
+   next gate to interrupt.
+5. When the delay is over, `process_reading` is called as long as the
+   `chrono.reading` flag has not been cleared. This flag is cleared by the
+   `process_reading` function, which prevents a single reading from being
+   processed multiple times.
+
+```c
+void EXTI0_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI0_IRQn 0 */
+	// Clear interrupt
+	EXTI->PR = 0x0001;
+	chrono.gate_1_time = TIM2->CNT;
+
+	chrono.reading = 1;
+
+	HAL_Delay(100);
+	if(chrono.reading == 1)
+		process_reading(&chrono);
+
+  /* USER CODE END EXTI0_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
+  /* USER CODE BEGIN EXTI0_IRQn 1 */
+
+  /* USER CODE END EXTI0_IRQn 1 */
+}
+```
+
+6. The `process_reading` function starts by clearing the `reading` flag.
+7. The `time_passed` value is then calculated using the [`time_meas`
+   function](#time_meas-function).
+8. If a valid value was recorded, the reading is passed into the `new_reading`
+   function, after which the gate time values are cleared.
+
+```c
+void process_reading(volatile chronograph *chrono)
+{
+    chrono->reading = 0;
+
+    uint32_t time_passed = time_meas(chrono->gate_1_time, chrono->gate_2_time,
+                                        chrono->gate_3_time, &gates);
+
+    if(time_passed == 1)
+        error();
+    else
+        new_reading(time_passed, gates, chrono);
+
+    chrono->gate_1_time = 0;
+    chrono->gate_2_time = 0;
+    chrono->gate_3_time = 0;
+}
+```
+
+9. The `new_reading` function first calculates the new fps value measured by
+   computing it with 
+<img src="https://render.githubusercontent.com/render/math?\frac{D/12}{\frac{1e6}{t}}">
+
+10. This value is then copied into the `new_read` buffer using the
+    [`d_to_str` function](#d_to_str-function).
+
+11. The string `" fps "` is appended to the `new_read` buffer.
+12. The string representation of the integer `gates` is appended to the
+    `new_read` buffer using the [`u_to_str` function](#u_to_str-function).
+
+```c
+void new_reading(const uint32_t time_passed, const uint8_t gates, volatile chronograph *chrono)
+{
+    char buff[17];
+    char new_read[17];
+    double fps = 0;
+
+    // FPS calculation
+    // (DISTANCE / 12) = feet
+    // 1e6 / time_passed = 1/seconds
+    fps = ((double)(DISTANCE * 1000000) / (time_passed * 12));
+
+    // Copy new reading into the new_read buffer
+    // values stored as formatted strings
+    strcpy(new_read, d_to_str(fps, buff+16));
+    strcat(new_read, " fps ");
+    strcat(new_read, u_to_str(gates, buff+16));
+    strcat(new_read, "\0");
+    add_history(new_read, chrono);
+    display_update(chrono);
+}
+```
+
+13. Next, `add_history` is called passing the new reading string and the
+    chronograph state.
+14. The `chrono->h_index` is incremented, and if the history buffer is full it
+    is reset to 0 to start overwriting the first data measurements.
+15. The new reading is then copied into the new history location.
+
+```c
+void add_history(char *new, volatile chronograph *chrono)
+{
+    // Move index, or reset it to overwrite once history size is full
+    if(chrono->h_index == (H_SIZE - 1))
+        chrono->h_index = 0;
+    else
+        chrono->h_index++;
+
+    // Store value in history buffer
+    strcpy((char *)chrono->history[chrono->h_index], new);
+
+    // TODO: Write data SD card here
+}
+```
+
+16. Next, the `display_update` function is called passing the chronograph
+    state.
+17. Each row of the display is stepped through, and the index value and data is
+    written to the display according to the history index and visual index.
+18. The data position to display is found with the
+    [`ind` function](#ind-function).
+
+```c
+void display_update(volatile chronograph *chrono)
+{
+    char buff[16];
+
+    // Write each history value to the display
+    for(int row = 3; row > -1; row--)
+    {
+        lcd_put_cur(row,0);
+        HAL_Delay(5);
+
+        lcd_send_string(u_to_str(3 - row - chrono->v_index, buff + 16));
+        lcd_send_string(": ");
+
+        lcd_send_string((char *)chrono->history[ind(row, chrono)]);
+    }
+}
+```
+
+### time_meas function
+
+This function checks which gates fired and calculates the time the projectile
+took to travel `DISTANCE` inches in microseconds. The calculation is the simple
+average of the two spans if all three gates are fired, otherwise is the
+calculated using the two gates that did. If only one gate fired, `1` is
+returned, which results in an `error();` in the `process_reading` function.
+
+The `gates` variable is an integer that represents the gates that have fired,
+to let the user know if all 3 are not triggering for some reason.
+
+```c
+uint32_t time_meas(const uint32_t tim1, const uint32_t tim2,
+        const uint32_t tim3, uint8_t *gates)
+{
+    if(tim1 && tim2 && tim3)
+    {
+        *gates = 123;
+        return ((tim2 - tim1) + (tim3 - tim2))/168;
+    }
+    else if(tim1 && tim2)
+    {
+        *gates = 12;
+        return (tim2 - tim1)/84;
+    }
+    else if(tim2 && tim3)
+    {
+        *gates = 23;
+        return (tim3 - tim2)/84;
+    }
+    else if(tim1 && tim3)
+    {
+        *gates = 13;
+        return (tim3 - tim1)/168;
+    }
+    return 1;
+}
+```
+
+### u_to_str function
+This function takes in a unsigned integer and the ending byte of a char array
+buffer and fills that char buffer with the string representation of the
+unsigned integer, then returns the earliest used byte of that buffer as a
+pointer.
+
+```c
+char *u_to_str(unsigned x, char *s)
+{
+    *--s = 0;
+    if (!x)
+        *--s = '0';
+    for (; x; x /= 10)
+        *--s = '0' + x % 10;
+    return s;
+}
+```
+
+1. Write a terminator to the end of the buffer
+2. Decrement the buffer pointer
+3. Check if `x` is zero.
+    - If `x` is zero, then the function would run like:  
+        ```c
+        *--s = 0;
+        *--s = '0';
+        for(; False;)
+        return s; // s = "0\0"
+
+        ```
+    - If `x` is for example `138`, then the function would run like:  
+        ```c
+        *--s = 0;
+        if(138)         // for(;x;) == if(x)
+        {
+            *--s = '8'; // *--s = '0' + x % 10;
+            x = 13      // x /= 10
+        }
+        if(13)          // for(;x;) == if(x)
+        {
+            *--s = '3'; // *--s = '0' + x % 10;
+            x = 1       // x /= 10
+        }
+        if(1)           // for(;x;) == if(x)
+        {
+            *--s = '1'; // *--s = '0' + x % 10;
+            x = 0       // x /= 10
+        }
+        if(0)           // for(;x;) == if(x)
+        return s;       // s = "138\0"
+        ```
+
+
+### d_to_str function
+This function takes in a double value and the ending byte of a char array
+buffer and fills that char buffer with the string representation of the double,
+then returns the earliest used byte of that buffer as a pointer.
+
+This is basically just a modified version of the
+[`u_to_str` function](#u_to_str-function) that takes doubles and rounds them to
+two decimal places and converts them to integers before using similar logic.
+
+```c
+char *d_to_str(double d_x, char *s)
+{
+    uint32_t x = d_x*100;
+
+    *--s = 0;
+    if (!x) {
+    	s -= 4;
+        strcpy(s, "0.00");
+        return s;
+    }
+    for (int i = 0; i < 2 && x; i++) {
+        *--s = '0' + x % 10;
+        x /= 10;
+    }
+    *--s = '.';
+    for (; x; x /= 10)
+        *--s = '0' + x % 10;
+    return s;
+}
+```
+
+### ind function
+This function solves for the current index of the data that needs to be
+displayed to the buffer given the current row and stored values in `v_index`
+and `h_index`.
+
+```c
+int ind(int row, volatile chronograph *chrono)
+{
+	int ind = chrono->h_index + 3 - row - chrono->v_index;
+	while(ind < 0)
+		ind++;
+	while(ind > H_SIZE)
+		ind--;
+	return ind;
+}
+```
 
 # Testing and Validation
 I have validated the software work thus far using three digital outputs of an
@@ -319,3 +671,5 @@ output in place of the Arduino to test the precision and work on calibration.
 [STM32F405 RM]: https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf
 
 [M4 PM]: https://www.st.com/resource/en/programming_manual/dm00046982-stm32-cortex-m4-mcus-and-mpus-programming-manual-stmicroelectronics.pdf
+
+[sunfound-i2c-wiki]: http://wiki.sunfounder.cc/index.php?title=I2C_LCD2004

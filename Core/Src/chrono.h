@@ -1,21 +1,21 @@
 #ifndef CHRONO_H
 #define CHRONO_H
 
-#define DISTANCE 10 // inches
-#define H_SIZE 10
+#define DISTANCE 10 // Inches
+#define H_SIZE 10 // Historical values
 
 #include "i2c_display.h"
 
 typedef struct Chronograph {
-    uint8_t h_index;
-    uint8_t v_index;
+    uint8_t h_index; // History index (for storage index)
+    uint8_t v_index; // View index (for user scrolling)
 
     char history[H_SIZE][10];
 
     uint32_t gate_1_time;
     uint32_t gate_2_time;
     uint32_t gate_3_time;
-    uint8_t reading;
+    uint8_t reading; // Reading flag set by gates
 } chronograph;
 
 uint32_t time_meas(const uint32_t tim1, const uint32_t tim2, const uint32_t tim3, uint8_t *gates);
