@@ -19,10 +19,10 @@
     * [Chronograph Struct](#chronograph-struct)
         * [Struct Variable Definitions](#struct-variable-definitions)
 * [ISR and System Flow](#isr-and-system-flow)
-        * [time_meas function](#time_meas-function)
-        * [u_to_str function](#u_to_str-function)
-        * [d_to_str function](#d_to_str-function)
-        * [ind function](#ind-function)
+    * [time_meas function](#time_meas-function)
+    * [u_to_str function](#u_to_str-function)
+    * [d_to_str function](#d_to_str-function)
+    * [ind function](#ind-function)
 * [Testing and Validation](#testing-and-validation)
 
 # Senior Design Chronograph - The Passing of the Torch
@@ -437,7 +437,7 @@ void process_reading(volatile chronograph *chrono)
 ```
 
 9. The `new_reading` function first calculates the new fps value measured by
-   computing it with $$\frac{D/12}{\frac{1e6}{t}}$$.
+   computing it with (D/12)/(1e6/t).
 
 10. This value is then copied into the `new_read` buffer using the
     [`d_to_str` function](#d_to_str-function).
