@@ -1,6 +1,4 @@
 ### Table of Contents
-<!-- vim-markdown-toc GFM -->
-
 * [Senior Design Chronograph - The Passing of the Torch](#senior-design-chronograph---the-passing-of-the-torch)
 * [Hardware](#hardware)
     * [STM32F4](#stm32f4)
@@ -26,8 +24,6 @@
         * [d_to_str function](#d_to_str-function)
         * [ind function](#ind-function)
 * [Testing and Validation](#testing-and-validation)
-
-<!-- vim-markdown-toc -->
 
 # Senior Design Chronograph - The Passing of the Torch
 This is the documentation for the software for senior design project for the
@@ -441,8 +437,7 @@ void process_reading(volatile chronograph *chrono)
 ```
 
 9. The `new_reading` function first calculates the new fps value measured by
-   computing it with 
-<img src="https://render.githubusercontent.com/render/math?\frac{D/12}{\frac{1e6}{t}}">
+   computing it with $$\frac{D/12}{\frac{1e6}{t}}$$.
 
 10. This value is then copied into the `new_read` buffer using the
     [`d_to_str` function](#d_to_str-function).
